@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plantenzorg App</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f5; color: #1a251c; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .app-container { flex: 1; display: none; flex-direction: column; height: 100%; }
+    .screen { display: none; flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
+    .screen.active { display: block; }
+    h2 { color: #2e7d32; margin-top: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e8f5e9; padding-bottom: 10px; }
+
+    button { background-color: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    button:hover { background-color: #2e7d32; }
+    .btn-all { background-color: #1b5e20; width: 100%; padding: 12px; font-size: 1em; margin-bottom: 15px; }
+    .btn-add { background-color: #fbc02d; color: #1a251c; font-size: 0.9em; padding: 6px 12px;}
+    .btn-danger { background-color: #d32f2f; }
+    .btn-danger:hover { background-color: #b71c1c; }
+    
+    .plant-card { background: #ffffff; border: 1px solid #e1e8e3; border-radius: 12px; padding: 16px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); display: flex; flex-direction: column;}
+    .plant-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.1em; color: #1b5e20; margin-bottom: 8px; }
+    .plant-title-wrapper { display: flex; align-items: center; gap: 10px; }
+    .plant-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #e8f5e9; border: 2px solid #c8e6c9;}
+
+    .progress-container { background: #e4ebe6; border-radius: 20px; height: 24px; width: 100%; position: relative; overflow: hidden; margin: 10px 0; border: 1px solid #d2ded5; }
+    .progress-bar { height: 100%; border-radius: 20px; transition: width 0.4s ease; }
+    .progress-text { position: absolute; width: 100%; text-align: center; top: 2px; font-size: 0.85em; font-weight: bold; color: #1a251c; text-shadow: 0px 0px 4px rgba(255,255,255,0.8); }
+
+    .calendar-box { background: #ffffff; border: 1px solid #cbd6ce; border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .calendar-header h3 { margin: 0; color: #2e7d32; font-size: 1.1em; }
+    .calendar-nav-btn { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .weekday-label { font-size: 0.8em; font-weight: bold; color: #556b5a; padding-bottom: 5px; }
+    .calendar-day { background: #f9fbf9; border: 1px solid #e8ece9; border-radius: 6px; min-height: 42px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 4px 2px; font-size: 0.85em; cursor: pointer; }
+    .calendar-day.empty { background: transparent; border: none; cursor: default; }
+    .calendar-day.today { border: 2px solid #fbc02d; background: #fffde7; font-weight: bold; }
+    .dots-container { display: flex; gap: 3px; justify-content: center; margin-top: 2px; flex-wrap: wrap; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .dot.watered { background-color: #4caf50; }
+    .dot.scheduled { background-color: #fbc02d; }
+    .dot.repotting { background-color: #795548; }
+    #info-box { margin-top: 10px; padding: 10px; background: #f1f8e9; border-left: 4px solid #7cb342; display: none; font-size: 0.9em; line-height: 1.4em; }
+    
+    .upload-box { border: 2px dashed #4caf50; border-radius: 12px; padding: 25px; text-align: center; background: #ffffff; cursor: pointer; transition: background 0.2s; margin-bottom: 15px; }
+    .upload-box:hover { background: #f1f8e9; }
+
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; border-top: 1px solid #d2ded5; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100; }
+    .nav-item { text-align: center; color: #556b5a; cursor: pointer; font-size: 0.85em; font-weight: bold; flex: 1; padding: 5px; }
+    .nav-item.active { color: #2e7d32; border-bottom: 3px solid #4caf50; }
+    .nav-icon { font-size: 1.4em; display: block; margin-bottom: 4px; }
+
+    .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .modal h3 { color: #2e7d32; margin-top: 0; }
+    .modal-btn { width: 100%; margin-top: 10px; padding: 10px; border-radius: 6px; font-weight: bold; }
+    .modal-btn.secondary { background: #e0e0e0; color: #333; margin-top: 5px;}
+    .form-group { margin-bottom: 12px; text-align: left; }
+    .form-group label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 4px; color: #1a251c; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; font-size: 0.85em; text-align: left; margin-top: 10px; color: #555;}
+    
+    #status-alert { padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; font-weight: bold; background-color: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e20; }
+  </style>
+</head>
+<body>
+
+<!-- COOKIE MELDING -->
+<div id="cookie-modal" class="overlay">
+  <div class="modal">
+    <h3>🍪 Cookies & Privacy</h3>
+    <p style="font-size: 0.9em; color:#555;">We gebruiken functionele cookies om de sessiegegevens en plantenstatistieken veilig op te slaan.</p>
+    <button class="modal-btn" onclick="acceptCookies()">Accepteren</button>
+    <button class="modal-btn secondary" onclick="rejectCookies()">Weigeren</button>
+  </div>
+</div>
+
+<!-- LOGIN MELDING -->
+<div id="login-modal" class="overlay" style="display: none;">
+  <div class="modal">
+    <h3>🔐 Gmail Account Inloggen</h3>
+    <p style="font-size:0.85em; color:#555;">Vul je Gmail adres in om je eigen planten permanent op te slaan:</p>
+    <div class="form-group">
+      <input type="email" id="login-user" placeholder="jouwnaam@gmail.com" required>
+    </div>
+    <div class="form-group">
+      <input type="password" id="login-pass" placeholder="Wachtwoord" required>
+    </div>
+    <div class="checkbox-group">
+      <input type="checkbox" id="save-data" checked>
+      <label for="save-data">Stuur inlogbevestiging & sla mijn data op</label>
+    </div>
+    <button class="modal-btn" onclick="doLogin()">Inloggen & Gmail Koppelen</button>
+  </div>
+</div>
+
+<!-- PLANT HANDMATIG TOEVOEGEN -->
+<div id="add-plant-modal" class="overlay" style="display: none;">
+  <div class="modal">
+    <h3>🌱 Nieuwe Plant Toevoegen</h3>
+    <div class="form-group">
+      <label>Naam van de plant (bijv. Pannenkoekplant of MON):</label>
+      <input type="text" id="new-plant-name" placeholder="Typ naam..." oninput="checkPlantInfoOnType()">
+      <div id="plant-lookup-status" style="font-size:0.85em; font-weight:bold; margin-top:6px;"></div>
+    </div>
+    
+    <div id="manual-fields-container" style="display:none;">
+      <div class="form-group"><label>Water interval (dagen):</label><input type="number" id="new-plant-interval" placeholder="bijv. 7"></div>
+      <div class="form-group"><label>Hoeveelheid water:</label><input type="text" id="new-plant-amount" placeholder="bijv. 100 ml"></div>
+      <div class="form-group">
+        <label>Groeifase:</label>
+        <select id="new-plant-fase">
+          <option value="Zaadje">Zaadje</option>
+          <option value="Net ontkiemd">Net ontkiemd</option>
+          <option value="Iets groter">Iets groter</option>
+          <option value="Volwassen" selected>Volwassen</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Grootte nu / Hoogte (Optioneel):</label><input type="text" id="new-plant-grootte" placeholder="bijv. 15 cm"></div>
+    </div>
+
+    <button class="modal-btn" id="btn-submit-plant" onclick="submitNewPlant()" style="display:none;">Plant Toevoegen</button>
+    <button class="modal-btn secondary" onclick="closeAddModal()">Annuleren</button>
+  </div>
+</div>
+
+<!-- HOOFD APP CONTAINER -->
+<div id="main-app" class="app-container">
+  
+  <!-- TAB 1: HOME -->
+  <div id="home-screen" class="screen active">
+    <h2>🌿 Mijn Tuin <button class="btn-add" onclick="openAddModal()">+ Plant</button></h2>
+    <div id="status-alert"></div>
+    <button class="btn-all" onclick="waterPlant('ALLE')">💧 Geef ALLE Planten Water</button>
+    <div id="planten-lijst">Laden...</div>
+  </div>
+
+  <!-- TAB 2: AGENDA -->
+  <div id="agenda-screen" class="screen">
+    <h2>📅 Water & Verpot Agenda</h2>
+    <div class="calendar-box">
+      <div class="calendar-header">
+        <button class="calendar-nav-btn" onclick="changeMonth(-1)">◀</button>
+        <h3 id="calendar-title">Maand Jaar</h3>
+        <button class="calendar-nav-btn" onclick="changeMonth(1)">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+      <div id="info-box"></div>
+      <div style="font-size:0.8em; margin-top:12px; color:#555; display:flex; justify-content:center; gap:12px; border-top:1px dashed #ddd; padding-top:8px;">
+        <span>🟢 Gekregen</span> <span>🟡 Gepland</span> <span>🟤 Verpotten</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: FOTO UPLOAD & AI HERKENNING MET [CORRECT/INCORRECT] EN [TOEVOEGEN/WEIGEREN] -->
+  <div id="scan-screen" class="screen">
+    <h2>📷 Plant Herkennen via Foto</h2>
+    <p style="font-size:0.9em; color:#555;">Selecteer of maak een foto van je plant. Onze app herkent automatisch welk type plant het is!</p>
+    
+    <div class="upload-box" onclick="document.getElementById('file-upload-input').click()">
+      <span style="font-size:2.5em; display:block;">🖼️</span>
+      <b style="color:#2e7d32;">Klik hier om een foto te uploaden</b>
+      <p style="font-size:0.8em; color:#777; margin:5px 0 0 0;">(Selecteer een foto van je galerij of bestand)</p>
+    </div>
+    <input type="file" id="file-upload-input" accept="image/*" style="display:none;" onchange="verwerkFotoUpload(event)">
+
+    <!-- RESULTATEN BLOK -->
+    <div id="scan-result-container" style="display:none; background:#ffffff; border:1px solid #cbd6ce; border-radius:12px; padding:16px; margin-top:15px; text-align:center;">
+      <img id="scan-uploaded-preview" src="" style="width:160px; height:160px; border-radius:12px; object-fit:cover; margin:0 auto 10px auto; border:3px solid #4caf50; display:block;">
+      
+      <div style="text-align:left; background:#f4f7f5; padding:12px; border-radius:8px; font-size:0.88em; margin-bottom:12px; border:1px solid #cbd6ce;">
+        <b>Herkende Plant:</b> <span id="scan-plant-name" style="color:#2e7d32; font-weight:bold;">-</span><br>
+        <b>Waterbehoefte:</b> Elke <span id="scan-plant-interval">-</span> dagen (<span id="scan-plant-amount">-</span>)<br>
+        <b>Groeifase:</b> <span id="scan-plant-fase">Volwassen</span>
+      </div>
+
+      <!-- STAP 1: VRAAG OF HET CORRECT IS -->
+      <div id="scan-step-1">
+        <p style="font-size:0.9em; font-weight:bold; color:#1b5e20;">Is deze plant correct herkend?</p>
+        <div style="display:flex; gap:10px;">
+          <button style="flex:1;" onclick="handleScanChoice('CORRECT')">✅ Correct</button>
+          <button class="btn-danger" style="flex:1;" onclick="handleScanChoice('INCORRECT')">❌ Incorrect</button>
+        </div>
+      </div>
+
+      <!-- STAP 2A: ALS HET CORRECT IS -> TOEVOEGEN OF NIET TOEVOEGEN -->
+      <div id="scan-step-correct" style="display:none; margin-top:10px;">
+        <p style="font-size:0.85em; color:#2e7d32; font-weight:bold;">Mooi! Wil je deze plant toevoegen aan je tuin?</p>
+        <div style="display:flex; gap:10px;">
+          <button style="flex:1;" onclick="executeScanAddConfirm(true)">🌱 Toevoegen</button>
+          <button class="modal-btn secondary" style="flex:1; margin:0;" onclick="resetScanTab()">🚫 Niet toevoegen</button>
+        </div>
+      </div>
+
+      <!-- STAP 2B: ALS HET INCORRECT IS -> TOCH TOEVOEGEN OF WEIGEREN -->
+      <div id="scan-step-incorrect" style="display:none; margin-top:10px;">
+        <p style="font-size:0.85em; color:#d32f2f; font-weight:bold;">⚠️ Plant is niet goed herkend. Wat wil je doen?</p>
+        <div style="display:flex; gap:10px;">
+          <button style="flex:1; background:#fbc02d; color:#1a251c;" onclick="executeScanAddConfirm(true)">⚠️ Toch toevoegen</button>
+          <button class="btn-danger" style="flex:1;" onclick="resetScanTab()">❌ Weigeren</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB 4: GEGEVENS -->
+  <div id="gegevens-screen" class="screen">
+    <h2>👤 Mijn Gmail Gegevens</h2>
+    <div class="plant-card" style="padding:20px;">
+      <p style="margin-top:0; color:#556b5a; font-size:0.95em;">Dit account is gekoppeld aan de online database. Jouw planten blijven bewaard onder dit adres:</p>
+      <hr style="border:0; border-top:1px solid #e1e8e3; margin:15px 0;">
+      <p style="font-size:1.05em;"><b>Gmail Account:</b> <span id="display-username" style="color:#2e7d32; font-weight:bold;">-</span></p>
+      <p style="font-size:1.05em;"><b>Wachtwoord:</b> <span id="display-password" style="font-family:monospace; background:#e8f5e9; padding:2px 6px; border-radius:4px;">-</span></p>
+      <p style="font-size:0.85em; color:#666; margin-top:15px;">Status: 🟢 Account Online Opgeslagen & Meldingen Actief</p>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATIE -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="nav-home" onclick="switchTab('home')"><span class="nav-icon">🌿</span> Home</div>
+    <div class="nav-item" id="nav-agenda" onclick="switchTab('agenda')"><span class="nav-icon">📅</span> Agenda</div>
+    <div class="nav-item" id="nav-scan" onclick="switchTab('scan')"><span class="nav-icon">📷</span> Herkennen</div>
+    <div class="nav-item" id="nav-gegevens" onclick="switchTab('gegevens')"><span class="nav-icon">👤</span> Gegevens</div>
+  </div>
+
+</div>
+
+<script>
+  // COMPLETE FOTOBIBLIOTHEEK VOOR CAMERA & GEGEVENS
+  const plantPhotos = {
+    'Monstera': 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?auto=format&fit=crop&w=150&q=80',
+    'Pannenkoekplant': 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=150&q=80', 
+    'Pilea': 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=150&q=80', 
+    'Sansevieria': 'https://images.unsplash.com/photo-1593482892290-f54927ae1bf6?auto=format&fit=crop&w=150&q=80',
+    'Vrouwentong': 'https://images.unsplash.com/photo-1593482892290-f54927ae1bf6?auto=format&fit=crop&w=150&q=80',
+    'Epipremnum': 'https://images.unsplash.com/photo-1596483569762-b9cf7149021e?auto=format&fit=crop&w=150&q=80',
+    'Calathea': 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&w=150&q=80',
+    'Zamioculcas': 'https://images.unsplash.com/photo-1617173944883-6ffbd35d584d?auto=format&fit=crop&w=150&q=80',
+    'Ficus': 'https://images.unsplash.com/photo-1600411833196-7c1f6b1a8b90?auto=format&fit=crop&w=150&q=80',
+    'Spathiphyllum': 'https://images.unsplash.com/photo-1593691509543-c55fb32e7355?auto=format&fit=crop&w=150&q=80',
+    'Aloë Vera': 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?auto=format&fit=crop&w=150&q=80',
+    'Orchidee': 'https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?auto=format&fit=crop&w=150&q=80',
+    'Graslelie': 'https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=150&q=80',
+    'Strelitzia': 'https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11?auto=format&fit=crop&w=150&q=80',
+    'Cactus': 'https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?auto=format&fit=crop&w=150&q=80'
+  };
+  const defaultPhoto = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=150&q=80';
+
+  function getPlantPhotoUrl(plantNaam) {
+    if (!plantNaam) return defaultPhoto;
+    for (let key in plantPhotos) {
+      if (plantNaam.toLowerCase().indexOf(key.toLowerCase()) !== -1) {
+        return plantPhotos[key];
+      }
+    }
+    return defaultPhoto;
+  }
+
+  let currentUserEmail = "";
+  let currentPass = "";
+  let activeScanPlantData = null;
+
+  // 🎵 EXTREEM LUID "GULP / SLURP" GELUID (20x Booster)
+  function playGulpSound() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(20.0, ctx.currentTime);
+      
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-6, ctx.currentTime);
+      compressor.knee.setValueAtTime(0, ctx.currentTime);
+      compressor.ratio.setValueAtTime(20, ctx.currentTime);
+      compressor.attack.setValueAtTime(0.001, ctx.currentTime);
+      compressor.release.setValueAtTime(0.1, ctx.currentTime);
+
+      masterGain.connect(compressor);
+      compressor.connect(ctx.destination);
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sawtooth';
+      const now = ctx.currentTime;
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
+      
+      gain.gain.setValueAtTime(2.0, now);
+      gain.gain.linearRampToValueAtTime(4.0, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.25);
+      
+      setTimeout(() => {
+        try {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'triangle';
+          const t = ctx.currentTime;
+          osc2.frequency.setValueAtTime(420, t);
+          osc2.frequency.exponentialRampToValueAtTime(980, t + 0.1);
+          gain2.gain.setValueAtTime(4.0, t);
+          gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+          osc2.connect(gain2);
+          gain2.connect(masterGain);
+          osc2.start(t);
+          osc2.stop(t + 0.15);
+        } catch(e) {}
+      }, 100);
+    } catch(e) {}
+  }
+
+  function acceptCookies() { 
+    document.getElementById('cookie-modal').style.display = 'none'; 
+    document.getElementById('login-modal').style.display = 'flex'; 
+  }
+  
+  function rejectCookies() { 
+    alert("Cookies geweigerd. Gegevens worden deze sessie tijdelijk onthouden."); 
+    document.getElementById('cookie-modal').style.display = 'none'; 
+    document.getElementById('login-modal').style.display = 'flex'; 
+  }
+
+  function doLogin() {
+    currentUserEmail = document.getElementById('login-user').value.trim();
+    currentPass = document.getElementById('login-pass').value;
+    
+    if(!currentUserEmail || currentUserEmail.indexOf('@') === -1) { 
+      alert("Vul a.u.b. een geldig Gmail adres in."); 
+      return; 
+    }
+    
+    document.getElementById('display-username').innerText = currentUserEmail;
+    document.getElementById('display-password').innerText = currentPass ? currentPass : '(Geen wachtwoord)';
+    
+    document.getElementById('login-modal').style.display = 'none';
+    document.getElementById('main-app').style.display = 'flex';
+    
+    if (document.getElementById('save-data').checked) {
+      google.script.run.verstuurGmailInlogLink(currentUserEmail);
+    }
+    
+    laadDashboard();
+  }
+
+  function switchTab(tabName) {
+    ['home', 'agenda', 'scan', 'gegevens'].forEach(t => {
+      document.getElementById(t + '-screen').classList.remove('active');
+      document.getElementById('nav-' + t).classList.remove('active');
+    });
+    document.getElementById(tabName + '-screen').classList.add('active');
+    document.getElementById('nav-' + tabName).classList.add('active');
+  }
+
+  // --- FOTO UPLOAD & AI PLANTENHERKENNING LOGICA ---
+  function verwerkFotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('scan-uploaded-preview').src = e.target.result;
+      document.getElementById('scan-result-container').style.display = 'block';
+      
+      // Stap 1 weer zichtbaar maken, stap 2 verbergen
+      document.getElementById('scan-step-1').style.display = 'block';
+      document.getElementById('scan-step-correct').style.display = 'none';
+      document.getElementById('scan-step-incorrect').style.display = 'none';
+
+      // Analyseer bestand via Google Apps Script (gekoppeld met Tabblad 2)
+      google.script.run.withSuccessHandler(function(info) {
+        activeScanPlantData = info;
+        document.getElementById('scan-plant-name').innerText = info.naam;
+        document.getElementById('scan-plant-interval').innerText = info.interval;
+        document.getElementById('scan-plant-amount').innerText = info.hoeveelheid;
+      }).herkenPlantViaFoto(file.name, file.name.split('.')[0]);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleScanChoice(type) {
+    document.getElementById('scan-step-1').style.display = 'none';
+    if (type === 'CORRECT') {
+      document.getElementById('scan-step-correct').style.display = 'block';
+    } else {
+      document.getElementById('scan-step-incorrect').style.display = 'block';
+    }
+  }
+
+  function executeScanAddConfirm(shouldAdd) {
+    if (!shouldAdd || !activeScanPlantData) {
+      resetScanTab();
+      return;
+    }
+    
+    switchTab('home');
+    showAlert("Plant toevoegen aan jouw tuin...", "#fff3cd", "#856404");
+    
+    google.script.run.withSuccessHandler(function(res) {
+      showAlert(res.message, "#e8f5e9", "#1b5e20");
+      resetScanTab();
+      laadDashboard();
+    }).voegPlantToe(
+      activeScanPlantData.naam, 
+      activeScanPlantData.interval, 
+      activeScanPlantData.hoeveelheid, 
+      'Volwassen', 
+      '20 cm', 
+      currentUserEmail
+    );
+  }
+
+  function resetScanTab() {
+    document.getElementById('scan-result-container').style.display = 'none';
+    document.getElementById('file-upload-input').value = '';
+    activeScanPlantData = null;
+  }
+
+  // --- ZOEK LOGICA TABBLAD 2 & "PLANT NIET GEVONDEN" ---
+  let lookupTimer;
+  function checkPlantInfoOnType() {
+    clearTimeout(lookupTimer);
+    let inputName = document.getElementById('new-plant-name').value.trim();
+    let statusNotice = document.getElementById('plant-lookup-status');
+    let manualFields = document.getElementById('manual-fields-container');
+    let submitBtn = document.getElementById('btn-submit-plant');
+    
+    if (inputName.length < 1) {
+      statusNotice.innerText = '';
+      manualFields.style.display = 'none';
+      submitBtn.style.display = 'none';
+      return;
+    }
+    
+    statusNotice.style.color = '#555';
+    statusNotice.innerText = 'Zoeken in Tabblad 2...';
+    
+    lookupTimer = setTimeout(function() {
+      google.script.run.withSuccessHandler(function(info) {
+        manualFields.style.display = 'block';
+        submitBtn.style.display = 'block';
+        
+        if (info.gevonden) {
+          statusNotice.style.color = '#2e7d32';
+          statusNotice.innerHTML = '✅ Plant gevonden in Tabblad 2! Gegevens automatisch gekoppeld.';
+          document.getElementById('new-plant-interval').value = info.interval;
+          document.getElementById('new-plant-amount').value = info.hoeveelheid;
+        } else {
+          statusNotice.style.color = '#d32f2f';
+          statusNotice.innerHTML = 'plant niet gevonden';
+          
+          document.getElementById('new-plant-interval').value = 7;
+          document.getElementById('new-plant-amount').value = '100 ml';
+        }
+      }).zoekPlantInfo(inputName);
+    }, 300);
+  }
+
+  function openAddModal() { 
+    document.getElementById('add-plant-modal').style.display = 'flex'; 
+    document.getElementById('new-plant-name').value = '';
+    document.getElementById('plant-lookup-status').innerText = '';
+    document.getElementById('manual-fields-container').style.display = 'none';
+    document.getElementById('btn-submit-plant').style.display = 'none';
+  }
+  
+  function closeAddModal() { document.getElementById('add-plant-modal').style.display = 'none'; }
+  
+  function submitNewPlant() {
+    let name = document.getElementById('new-plant-name').value.trim();
+    let interval = document.getElementById('new-plant-interval').value;
+    let amount = document.getElementById('new-plant-amount').value;
+    let fase = document.getElementById('new-plant-fase').value;
+    let grootte = document.getElementById('new-plant-grootte').value;
+    
+    if(!name) return;
+    closeAddModal();
+    showAlert("Plant opslaan...", "#fff3cd", "#856404");
+    
+    google.script.run.withSuccessHandler(function(res) {
+      showAlert(res.message, "#e8f5e9", "#1b5e20");
+      laadDashboard();
+    }).voegPlantToe(name, interval, amount, fase, grootte, currentUserEmail);
+  }
+
+  function showAlert(msg, bgColor, color) {
+    let alertBox = document.getElementById('status-alert');
+    alertBox.style.display = 'block'; alertBox.style.backgroundColor = bgColor; alertBox.style.color = color;
+    alertBox.innerText = msg;
+    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+  }
+
+  let currentArrEvents = { history: {}, future: {}, repotting: {} };
+  let calendarDate = new Date(); 
+
+  function laadDashboard() {
+    google.script.run
+      .withSuccessHandler(function(data) {
+        currentArrEvents = data.calendarEvents;
+        bouwPlantenLijst(data.plants);
+        renderCalendar();
+      }).getCombinedDashboardData(currentUserEmail);
+  }
+
+  function bouwPlantenLijst(plants) {
+    let html = '';
+    if(!plants || plants.length === 0) { 
+      document.getElementById('planten-lijst').innerHTML = `
+        <div style="text-align:center; padding:30px; color:#666; background:#fff; border-radius:12px; border:1px dashed #ccc; margin-top: 15px;">
+          🌱 <b style="display:block; font-size:1.2em; margin-bottom:5px; color:#2e7d32;">Je tuin is nog leeg!</b>
+          <span style="font-size:0.9em;">Klik op <b>+ Plant</b> of ga naar 'Herkennen' om je eigen planten toe te voegen.</span>
+        </div>`; 
+      return; 
+    }
+    
+    plants.forEach(function(p) {
+      let barColor = '#4caf50'; 
+      if (p.vochtigheid === 100) { barColor = '#2196f3'; } 
+      else if (p.vochtigheid <= 45) { barColor = '#f44336'; } 
+      else if (p.vochtigheid < 60) { barColor = '#ff9800'; } 
+      
+      // HAALT GEKOPPELDE FOTO OP BASIS VAN PLANTENAAM
+      let fotoUrl = getPlantPhotoUrl(p.naam);
+
+      html += `
+        <div class="plant-card">
+          <div class="plant-header">
+            <div class="plant-title-wrapper">
+              <img src="${fotoUrl}" class="plant-img" alt="${p.naam}">
+              <div>
+                <span style="display:block;">${p.naam}</span>
+                <span style="font-size:0.65em; color:#556b5a; font-weight:normal; display:block;">
+                  Fase: <b>${p.fase}</b> ${p.grootte && p.grootte !== '-' ? '| Grootte: ' + p.grootte : ''}
+                </span>
+              </div>
+            </div>
+            <span style="font-size:0.75em; color:#556b5a; font-weight:normal;">Elke ${p.interval_dagen} dagen (${p.hoeveelheid})</span>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar" style="width: ${p.vochtigheid}%; background-color: ${barColor};"></div>
+            <div class="progress-text">${p.vochtigheid}% vochtig</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+            <span style="font-size:0.85em; font-weight:bold;">
+              ${p.vochtigheid <= 45 ? '❌ Geef nu water!' : '⏳ Volgende: over ' + p.diff_dagen + ' dagen'}
+            </span>
+            <button onclick="waterPlant('${p.naam.replace(/'/g, "\\'")}')">💧 Water</button>
+          </div>
+        </div>
+      `;
+    });
+    document.getElementById('planten-lijst').innerHTML = html;
+  }
+
+  function waterPlant(naam) {
+    playGulpSound();
+    showAlert('Wateractie verwerken...', '#fff3cd', '#856404');
+    google.script.run.withSuccessHandler(function(res) {
+        if(res.success) { showAlert(res.message, '#e8f5e9', '#1b5e20'); laadDashboard(); } 
+        else { showAlert('Fout: ' + res.message, '#f8d7da', '#721c24'); }
+    }).geefWaterActie(naam, currentUserEmail);
+  }
+
+  function renderCalendar() {
+    const grid = document.getElementById('calendar-grid');
+    const title = document.getElementById('calendar-title');
+    grid.innerHTML = '';
+    const maanden = ["Januari", "Februari", "Maart", "April", "Mei", "Juni", "Juli", "Augustus", "September", "Oktober", "November", "December"];
+    const weekdagen = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+    
+    let jaar = calendarDate.getFullYear(); let maand = calendarDate.getMonth();
+    title.innerText = maanden[maand] + " " + jaar;
+    weekdagen.forEach(d => { grid.innerHTML += `<div class="weekday-label">${d}</div>`; });
+    
+    let eersteDag = new Date(jaar, maand, 1).getDay();
+    let gecorrigeerdeStart = eersteDag === 0 ? 6 : eersteDag - 1; 
+    let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
+
+    for (let i = 0; i < gecorrigeerdeStart; i++) { grid.innerHTML += `<div class="calendar-day empty"></div>`; }
+
+    let vandaag = new Date();
+    for (let d = 1; d <= aantalDagen; d++) {
+      let dummyDate = new Date(jaar, maand, d);
+      let yyyy = dummyDate.getFullYear(); 
+      let mm = String(dummyDate.getMonth() + 1).padStart(2, '0'); 
+      let dd = String(dummyDate.getDate()).padStart(2, '0');
+      let datumSleutel = `${yyyy}-${mm}-${dd}`;
+      
+      let isVandaag = (vandaag.getDate() === d && vandaag.getMonth() === maand && vandaag.getFullYear() === jaar) ? 'today' : '';
+      let dotsHtml = '<div class="dots-container">';
+      
+      if (currentArrEvents.history && currentArrEvents.history[datumSleutel]) dotsHtml += `<span class="dot watered" title="Water gegeven"></span>`;
+      if (currentArrEvents.future && currentArrEvents.future[datumSleutel]) dotsHtml += `<span class="dot scheduled" title="Water nodig"></span>`;
+      if (currentArrEvents.repotting && currentArrEvents.repotting[datumSleutel]) dotsHtml += `<span class="dot repotting" title="Verpotten"></span>`;
+      
+      dotsHtml += '</div>';
+
+      grid.innerHTML += `
+        <div class="calendar-day ${isVandaag}" onclick="toonDagInfo('${datumSleutel}')">
+          <span style="font-weight:500;">${d}</span>${dotsHtml}
+        </div>`;
+    }
+  }
+
+  function changeMonth(richting) { calendarDate.setMonth(calendarDate.getMonth() + richting); renderCalendar(); }
+  
+  function toonDagInfo(datumStr) {
+    let infoBox = document.getElementById('info-box');
+    let hPlanten = currentArrEvents.history[datumStr] || []; 
+    let fPlanten = currentArrEvents.future[datumStr] || [];
+    let rPlanten = currentArrEvents.repotting[datumStr] || [];
+
+    if (hPlanten.length === 0 && fPlanten.length === 0 && rPlanten.length === 0) { infoBox.style.display = 'none'; return; }
+    infoBox.style.display = 'block';
+    
+    let txt = `<b>📅 Info voor ${datumStr}:</b><br>`;
+    if (hPlanten.length > 0) txt += `🟢 <b>Water gekregen:</b> ${hPlanten.join(', ')}<br>`;
+    if (fPlanten.length > 0) txt += `🟡 <b>Water nodig:</b> ${fPlanten.join(', ')}<br>`;
+    if (rPlanten.length > 0) txt += `🟤 <b>Tijd om te verpotten:</b> ${rPlanten.join(', ')}`;
+    infoBox.innerHTML = txt;
+  }
+</script>
+</body>
+</html>
