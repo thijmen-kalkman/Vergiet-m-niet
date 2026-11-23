@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vergiet 'm niet</title>
+    <style>
+        /* Basis reset en lettertype */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Organische, rustige groene achtergrond */
+        body {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            color: #1b4332;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Kaart in het midden met afgeronde, organische hoeken */
+        .container {
+            max-width: 550px;
+            width: 100%;
+            background: #ffffff;
+            padding: 45px 35px;
+            border-radius: 28px;
+            border: 2px solid #a5d6a7;
+            box-shadow: 0 15px 35px rgba(27, 67, 50, 0.12);
+        }
+
+        /* Icoon bovenaan */
+        .plant-icon {
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        /* Hoofdtitel */
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #2d6a4f;
+            letter-spacing: -0.5px;
+        }
+
+        /* Jouw specifieke informatietekst */
+        .uitleg {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #344e41;
+        }
+
+        /* Pijltje naar beneden met subtiele animatie */
+        .pijl-omlaag {
+            font-size: 2rem;
+            color: #40916c;
+            margin-bottom: 20px;
+            display: block;
+            animation: stuiter 1.5s infinite;
+        }
+
+        @keyframes stuiter {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(8px);
+            }
+        }
+
+        /* Grote, opvallende knop die naar app.html linkt */
+        .open-app-knop {
+            display: inline-block;
+            background-color: #40916c;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 1.25rem;
+            font-weight: bold;
+            padding: 16px 40px;
+            border-radius: 50px;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 6px 20px rgba(64, 145, 108, 0.35);
+        }
+
+        .open-app-knop:hover {
+            background-color: #2d6a4f;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(45, 106, 79, 0.45);
+        }
+
+        /* Zorgt dat het ook op telefoons goed past */
+        @media (max-width: 480px) {
+            .container {
+                padding: 35px 20px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <div class="plant-icon" aria-hidden="true">🪴</div>
+        <h1>Vergiet 'm niet</h1>
+        
+        <p class="uitleg">
+            Welkom bij onze game, wil je nooit meer vergeten om je planten water te geven, download dan nu gelijk deze app.
+        </p>
+
+        <!-- Pijltje naar onder -->
+        <span class="pijl-omlaag" aria-hidden="true">⬇️</span>
+
+        <!-- Deze link opent direct het bestand app.html uit dezelfde GitHub-map -->
+        <a href="app.html" class="open-app-knop">Open de App</a>
+    </main>
+
+</body>
+</html>
