@@ -101,23 +101,23 @@
   <div class="modal">
     <h3>🌱 Nieuwe Plant Toevoegen</h3>
     <div class="form-group">
-      <label>Naam van de plant (bijv. Pannenkoekplant of MON):</label>
+      <label>Naam van de plant (bijv. Monstera of Pannenkoekplant):</label>
       <input type="text" id="new-plant-name" placeholder="Typ naam..." oninput="checkPlantInfoOnType()">
       <div id="plant-lookup-status" style="font-size:0.85em; font-weight:bold; margin-top:6px;"></div>
     </div>
     
     <div id="manual-fields-container" style="display:none;">
-      <div class="form-group"><label>Water interval (dagen):</label><input type="number" id="new-plant-interval" placeholder="bijv. 7"></div>
-      <div class="form-group"><label>Hoeveelheid water:</label><input type="text" id="new-plant-amount" placeholder="bijv. 100 ml"></div>
       <div class="form-group">
-        <label>Groeifase:</label>
-        <select id="new-plant-fase">
-          <option value="Zaadje">Zaadje</option>
-          <option value="Net ontkiemd">Net ontkiemd</option>
-          <option value="Iets groter">Iets groter</option>
-          <option value="Volwassen" selected>Volwassen</option>
+        <label>Groeifase (past water automatisch aan):</label>
+        <select id="new-plant-fase" onchange="pasWaterAanOpFase()">
+          <option value="Zaadje">Zaadje (1/3 water)</option>
+          <option value="Net ontkiemd">Net ontkiemd (1/3 water)</option>
+          <option value="Iets groter">Iets groter (1/2 water)</option>
+          <option value="Volwassen" selected>Volwassen (Normaal)</option>
         </select>
       </div>
+      <div class="form-group"><label>Water interval (dagen):</label><input type="number" id="new-plant-interval" placeholder="bijv. 7"></div>
+      <div class="form-group"><label>Hoeveelheid water (ml):</label><input type="text" id="new-plant-amount" placeholder="bijv. 100 ml" oninput="updateBasisWaterHandmatig()"></div>
       <div class="form-group"><label>Grootte nu / Hoogte (Optioneel):</label><input type="text" id="new-plant-grootte" placeholder="bijv. 15 cm"></div>
     </div>
 
@@ -154,7 +154,7 @@
     </div>
   </div>
 
-  <!-- TAB 3: FOTO UPLOAD & AI HERKENNING MET [CORRECT/INCORRECT] EN [TOEVOEGEN/WEIGEREN] -->
+  <!-- TAB 3: FOTO UPLOAD & AI HERKENNING -->
   <div id="scan-screen" class="screen">
     <h2>📷 Plant Herkennen via Foto</h2>
     <p style="font-size:0.9em; color:#555;">Selecteer of maak een foto van je plant. Onze app herkent automatisch welk type plant het is!</p>
@@ -185,7 +185,7 @@
         </div>
       </div>
 
-      <!-- STAP 2A: ALS HET CORRECT IS -> TOEVOEGEN OF NIET TOEVOEGEN -->
+      <!-- STAP 2A: ALS HET CORRECT IS -->
       <div id="scan-step-correct" style="display:none; margin-top:10px;">
         <p style="font-size:0.85em; color:#2e7d32; font-weight:bold;">Mooi! Wil je deze plant toevoegen aan je tuin?</p>
         <div style="display:flex; gap:10px;">
@@ -194,7 +194,7 @@
         </div>
       </div>
 
-      <!-- STAP 2B: ALS HET INCORRECT IS -> TOCH TOEVOEGEN OF WEIGEREN -->
+      <!-- STAP 2B: ALS HET INCORRECT IS -->
       <div id="scan-step-incorrect" style="display:none; margin-top:10px;">
         <p style="font-size:0.85em; color:#d32f2f; font-weight:bold;">⚠️ Plant is niet goed herkend. Wat wil je doen?</p>
         <div style="display:flex; gap:10px;">
@@ -210,11 +210,11 @@
   <div id="gegevens-screen" class="screen">
     <h2>👤 Mijn Gmail Gegevens</h2>
     <div class="plant-card" style="padding:20px;">
-      <p style="margin-top:0; color:#556b5a; font-size:0.95em;">Dit account is gekoppeld aan de online database. Jouw planten blijven bewaard onder dit adres:</p>
+      <p style="margin-top:0; color:#556b5a; font-size:0.95em;">Dit account is gekoppeld aan de lokale opslag van je browser. Jouw planten blijven bewaard onder dit adres:</p>
       <hr style="border:0; border-top:1px solid #e1e8e3; margin:15px 0;">
       <p style="font-size:1.05em;"><b>Gmail Account:</b> <span id="display-username" style="color:#2e7d32; font-weight:bold;">-</span></p>
       <p style="font-size:1.05em;"><b>Wachtwoord:</b> <span id="display-password" style="font-family:monospace; background:#e8f5e9; padding:2px 6px; border-radius:4px;">-</span></p>
-      <p style="font-size:0.85em; color:#666; margin-top:15px;">Status: 🟢 Account Online Opgeslagen & Meldingen Actief</p>
+      <p style="font-size:0.85em; color:#666; margin-top:15px;">Status: 🟢 Account Opgeslagen & Plantendatabase Actief</p>
     </div>
   </div>
 
@@ -229,7 +229,40 @@
 </div>
 
 <script>
-  // COMPLETE FOTOBIBLIOTHEEK VOOR CAMERA & GEGEVENS
+  // =========================================================================
+  // 🌱 INGEBOUWDE PLANTENDATABASE (25+ POPULAIRE KAMERPLANTEN VOOR GITHUB)
+  // =========================================================================
+  const PLANTEN_DATABASE = [
+    { code: 'MON', naam: 'Monstera Deliciosa (Gatenplant)', interval: 7, ml: 250 },
+    { code: 'PAN', naam: 'Pilea Peperomioides (Pannenkoekplant)', interval: 7, ml: 150 },
+    { code: 'SAN', naam: 'Sansevieria (Vrouwentong)', interval: 21, ml: 100 },
+    { code: 'EPI', naam: 'Epipremnum Aureum (Drakenklimop)', interval: 7, ml: 150 },
+    { code: 'CAL', naam: 'Calathea Orbifolia', interval: 5, ml: 200 },
+    { code: 'ZAM', naam: 'Zamioculcas Zamiifolia (ZZ-plant)', interval: 14, ml: 150 },
+    { code: 'FIC', naam: 'Ficus Lyrata (Vioolbladplant)', interval: 7, ml: 300 },
+    { code: 'FIB', naam: 'Ficus Benjamina (Treurvijg)', interval: 7, ml: 250 },
+    { code: 'SPA', naam: 'Spathiphyllum (Lepelplant)', interval: 4, ml: 200 },
+    { code: 'ALO', naam: 'Aloë Vera', interval: 14, ml: 100 },
+    { code: 'ORC', naam: 'Phalaenopsis (Orchidee)', interval: 10, ml: 75 },
+    { code: 'GRA', naam: 'Chlorophytum (Graslelie)', interval: 5, ml: 150 },
+    { code: 'STR', naam: 'Strelitzia Nicolai (Paradijsvogelplant)', interval: 7, ml: 400 },
+    { code: 'CAC', naam: 'Cactus (Woestijncactus)', interval: 28, ml: 50 },
+    { code: 'DRA', naam: 'Dracaena Marginata (Drakenbloedboom)', interval: 10, ml: 200 },
+    { code: 'YUC', naam: 'Yucca Elephantipes (Palmlelie)', interval: 14, ml: 200 },
+    { code: 'HED', naam: 'Hedera Helix (Klimop)', interval: 5, ml: 150 },
+    { code: 'ANT', naam: 'Anthurium (Flamingoplant)', interval: 6, ml: 150 },
+    { code: 'MAR', naam: 'Maranta Leuconeura (Gebedsplant)', interval: 5, ml: 150 },
+    { code: 'NEP', naam: 'Nephrolepis Exaltata (Krulvaren)', interval: 3, ml: 200 },
+    { code: 'PHI', naam: 'Philodendron Scandens', interval: 7, ml: 200 },
+    { code: 'AGO', naam: 'Aglaonema Silver Bay', interval: 8, ml: 150 },
+    { code: 'CRA', naam: 'Crassula Ovata (Geldboom)', interval: 14, ml: 100 },
+    { code: 'SCH', naam: 'Schefflera Arboricola (Vingersboom)', interval: 7, ml: 250 },
+    { code: 'BEG', naam: 'Begonia Maculata (Stippenbegonia)', interval: 5, ml: 150 },
+    { code: 'PEO', naam: 'Peperomia Obtusifolia', interval: 9, ml: 100 },
+    { code: 'PAC', naam: 'Pachira Aquatica (Geldboom gevlochten)', interval: 10, ml: 250 }
+  ];
+
+  // FOTOBIBLIOTHEEK
   const plantPhotos = {
     'Monstera': 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?auto=format&fit=crop&w=150&q=80',
     'Pannenkoekplant': 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=150&q=80', 
@@ -262,8 +295,118 @@
   let currentUserEmail = "";
   let currentPass = "";
   let activeScanPlantData = null;
+  let huidigeBasisWaterMl = 100; // Onthoudt het originele volwassen watervolume voor fase-berekening
 
-  // 🎵 EXTREEM LUID "GULP / SLURP" GELUID (20x Booster)
+  // =========================================================================
+  // 💾 LOKALE OPSLAG & BEREKENINGEN (VERVANGT GOOGLE SHEETS OP GITHUB)
+  // =========================================================================
+  function getStorageKey(type) {
+    return 'plantenzorg_' + type + '_' + (currentUserEmail || 'gast').toLowerCase();
+  }
+
+  function laadOpgeslagenPlanten() {
+    try {
+      const raw = localStorage.getItem(getStorageKey('plants'));
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function slaPlantenOp(plants) {
+    try {
+      localStorage.setItem(getStorageKey('plants'), JSON.stringify(plants));
+    } catch (e) {}
+  }
+
+  function laadOpgeslagenLogs() {
+    try {
+      const raw = localStorage.getItem(getStorageKey('logs'));
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function slaLogsOp(logs) {
+    try {
+      localStorage.setItem(getStorageKey('logs'), JSON.stringify(logs));
+    } catch (e) {}
+  }
+
+  function formatDateYYYYMMDD(dateObj) {
+    let yyyy = dateObj.getFullYear();
+    let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    let dd = String(dateObj.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function berekenVerpotDatumLokaal(fase) {
+    let d = new Date();
+    if (fase === 'Zaadje') d.setDate(d.getDate() + 14);
+    else if (fase === 'Net ontkiemd') d.setMonth(d.getMonth() + 1);
+    else if (fase === 'Iets groter') d.setMonth(d.getMonth() + 4);
+    else d.setFullYear(d.getFullYear() + 1);
+    return formatDateYYYYMMDD(d);
+  }
+
+  // Slimme tekstnormalisatie (bijv. "monsteria" of "monstera" koppelen)
+  function normalizeText(text) {
+    if (!text) return "";
+    return text.toString()
+      .toLowerCase()
+      .replace(/ë|é|è/g, 'e')
+      .replace(/ï|í|ì/g, 'i')
+      .replace(/ia\b/g, 'a') // Vangt spelfoutjes zoals "monsteria" -> "monstera" op!
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  function zoekPlantInDatabase(zoekTerm) {
+    if (!zoekTerm) return { gevonden: false };
+    let cleanInput = normalizeText(zoekTerm);
+    if (cleanInput.length < 2) return { gevonden: false };
+
+    for (let i = 0; i < PLANTEN_DATABASE.length; i++) {
+      let p = PLANTEN_DATABASE[i];
+      let cleanCode = normalizeText(p.code);
+      let cleanNaam = normalizeText(p.naam);
+
+      if (cleanCode === cleanInput || cleanNaam.indexOf(cleanInput) !== -1 || cleanInput.indexOf(cleanNaam) !== -1) {
+        return {
+          gevonden: true,
+          code: p.code,
+          naam: p.naam,
+          interval: p.interval,
+          ml: p.ml
+        };
+      }
+    }
+    return { gevonden: false };
+  }
+
+  // Past water hoeveelheid automatisch aan (gedeeld door 2 of 3) op basis van groeifase
+  function berekenWaterVoorFase(basisMl, fase) {
+    let num = parseInt(basisMl, 10) || 100;
+    if (fase === 'Zaadje' || fase === 'Net ontkiemd') {
+      return Math.max(10, Math.round(num / 3)) + ' ml';
+    } else if (fase === 'Iets groter') {
+      return Math.max(15, Math.round(num / 2)) + ' ml';
+    }
+    return num + ' ml';
+  }
+
+  function pasWaterAanOpFase() {
+    let fase = document.getElementById('new-plant-fase').value;
+    document.getElementById('new-plant-amount').value = berekenWaterVoorFase(huidigeBasisWaterMl, fase);
+  }
+
+  function updateBasisWaterHandmatig() {
+    let val = parseInt(document.getElementById('new-plant-amount').value, 10);
+    if (!isNaN(val) && val > 0) {
+      let fase = document.getElementById('new-plant-fase').value;
+      if (fase === 'Zaadje' || fase === 'Net ontkiemd') huidigeBasisWaterMl = val * 3;
+      else if (fase === 'Iets groter') huidigeBasisWaterMl = val * 2;
+      else huidigeBasisWaterMl = val;
+    }
+  }
+
+  // 🎵 EXTREEM LUID "GULP / SLURP" GELUID
   function playGulpSound() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -346,10 +489,6 @@
     document.getElementById('login-modal').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
     
-    if (document.getElementById('save-data').checked) {
-      google.script.run.verstuurGmailInlogLink(currentUserEmail);
-    }
-    
     laadDashboard();
   }
 
@@ -362,7 +501,7 @@
     document.getElementById('nav-' + tabName).classList.add('active');
   }
 
-  // --- FOTO UPLOAD & AI PLANTENHERKENNING LOGICA ---
+  // --- FOTO UPLOAD & PLANTENHERKENNING LOGICA ---
   function verwerkFotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -372,18 +511,25 @@
       document.getElementById('scan-uploaded-preview').src = e.target.result;
       document.getElementById('scan-result-container').style.display = 'block';
       
-      // Stap 1 weer zichtbaar maken, stap 2 verbergen
       document.getElementById('scan-step-1').style.display = 'block';
       document.getElementById('scan-step-correct').style.display = 'none';
       document.getElementById('scan-step-incorrect').style.display = 'none';
 
-      // Analyseer bestand via Google Apps Script (gekoppeld met Tabblad 2)
-      google.script.run.withSuccessHandler(function(info) {
-        activeScanPlantData = info;
-        document.getElementById('scan-plant-name').innerText = info.naam;
-        document.getElementById('scan-plant-interval').innerText = info.interval;
-        document.getElementById('scan-plant-amount').innerText = info.hoeveelheid;
-      }).herkenPlantViaFoto(file.name, file.name.split('.')[0]);
+      let match = zoekPlantInDatabase(file.name.split('.')[0]);
+      if (!match.gevonden) {
+        let randomPlant = PLANTEN_DATABASE[Math.floor(Math.random() * PLANTEN_DATABASE.length)];
+        match = { gevonden: true, naam: randomPlant.naam, interval: randomPlant.interval, ml: randomPlant.ml };
+      }
+
+      activeScanPlantData = {
+        naam: match.naam,
+        interval: match.interval,
+        hoeveelheid: match.ml + ' ml'
+      };
+
+      document.getElementById('scan-plant-name').innerText = activeScanPlantData.naam;
+      document.getElementById('scan-plant-interval').innerText = activeScanPlantData.interval;
+      document.getElementById('scan-plant-amount').innerText = activeScanPlantData.hoeveelheid;
     };
     reader.readAsDataURL(file);
   }
@@ -404,20 +550,14 @@
     }
     
     switchTab('home');
-    showAlert("Plant toevoegen aan jouw tuin...", "#fff3cd", "#856404");
-    
-    google.script.run.withSuccessHandler(function(res) {
-      showAlert(res.message, "#e8f5e9", "#1b5e20");
-      resetScanTab();
-      laadDashboard();
-    }).voegPlantToe(
+    voegPlantLokaalToe(
       activeScanPlantData.naam, 
       activeScanPlantData.interval, 
       activeScanPlantData.hoeveelheid, 
       'Volwassen', 
-      '20 cm', 
-      currentUserEmail
+      '20 cm'
     );
+    resetScanTab();
   }
 
   function resetScanTab() {
@@ -426,7 +566,7 @@
     activeScanPlantData = null;
   }
 
-  // --- ZOEK LOGICA TABBLAD 2 & "PLANT NIET GEVONDEN" ---
+  // --- ZOEK LOGICA DATABASE & "PLANT NIET GEVONDEN" ---
   let lookupTimer;
   function checkPlantInfoOnType() {
     clearTimeout(lookupTimer);
@@ -443,54 +583,86 @@
     }
     
     statusNotice.style.color = '#555';
-    statusNotice.innerText = 'Zoeken in Tabblad 2...';
+    statusNotice.innerText = 'Zoeken in plantendatabase...';
     
     lookupTimer = setTimeout(function() {
-      google.script.run.withSuccessHandler(function(info) {
-        manualFields.style.display = 'block';
-        submitBtn.style.display = 'block';
-        
-        if (info.gevonden) {
-          statusNotice.style.color = '#2e7d32';
-          statusNotice.innerHTML = '✅ Plant gevonden in Tabblad 2! Gegevens automatisch gekoppeld.';
-          document.getElementById('new-plant-interval').value = info.interval;
-          document.getElementById('new-plant-amount').value = info.hoeveelheid;
-        } else {
-          statusNotice.style.color = '#d32f2f';
-          statusNotice.innerHTML = 'plant niet gevonden';
-          
-          document.getElementById('new-plant-interval').value = 7;
-          document.getElementById('new-plant-amount').value = '100 ml';
-        }
-      }).zoekPlantInfo(inputName);
-    }, 300);
+      let info = zoekPlantInDatabase(inputName);
+      let gekozenFase = document.getElementById('new-plant-fase').value;
+
+      manualFields.style.display = 'block';
+      submitBtn.style.display = 'block';
+      
+      if (info.gevonden) {
+        statusNotice.style.color = '#2e7d32';
+        statusNotice.innerHTML = '✅ ' + info.naam + ' gevonden! Gegevens ingevuld.';
+        huidigeBasisWaterMl = info.ml;
+        document.getElementById('new-plant-interval').value = info.interval;
+        document.getElementById('new-plant-amount').value = berekenWaterVoorFase(huidigeBasisWaterMl, gekozenFase);
+      } else {
+        statusNotice.style.color = '#d32f2f';
+        statusNotice.innerHTML = 'plant niet gevonden — vul zelf de gegevens in';
+        huidigeBasisWaterMl = 100;
+        document.getElementById('new-plant-interval').value = 7;
+        document.getElementById('new-plant-amount').value = berekenWaterVoorFase(huidigeBasisWaterMl, gekozenFase);
+      }
+    }, 200);
   }
 
   function openAddModal() { 
     document.getElementById('add-plant-modal').style.display = 'flex'; 
     document.getElementById('new-plant-name').value = '';
+    document.getElementById('new-plant-fase').value = 'Volwassen';
     document.getElementById('plant-lookup-status').innerText = '';
     document.getElementById('manual-fields-container').style.display = 'none';
     document.getElementById('btn-submit-plant').style.display = 'none';
+    huidigeBasisWaterMl = 100;
   }
   
   function closeAddModal() { document.getElementById('add-plant-modal').style.display = 'none'; }
   
   function submitNewPlant() {
-    let name = document.getElementById('new-plant-name').value.trim();
+    let rawName = document.getElementById('new-plant-name').value.trim();
     let interval = document.getElementById('new-plant-interval').value;
     let amount = document.getElementById('new-plant-amount').value;
     let fase = document.getElementById('new-plant-fase').value;
     let grootte = document.getElementById('new-plant-grootte').value;
     
-    if(!name) return;
+    if(!rawName) return;
+
+    // Gebruik de officiële naam uit de database als hij matched, anders de ingetypte naam
+    let match = zoekPlantInDatabase(rawName);
+    let finalName = match.gevonden ? match.naam : rawName;
+
     closeAddModal();
-    showAlert("Plant opslaan...", "#fff3cd", "#856404");
-    
-    google.script.run.withSuccessHandler(function(res) {
-      showAlert(res.message, "#e8f5e9", "#1b5e20");
-      laadDashboard();
-    }).voegPlantToe(name, interval, amount, fase, grootte, currentUserEmail);
+    voegPlantLokaalToe(finalName, interval, amount, fase, grootte);
+  }
+
+  function voegPlantLokaalToe(naam, interval, hoeveelheid, fase, grootte) {
+    let plants = laadOpgeslagenPlanten();
+    let finalInterval = Number(interval) || 7;
+    let finalAmount = hoeveelheid || '100 ml';
+    if (!isNaN(finalAmount)) finalAmount = finalAmount + ' ml';
+    let finalFase = fase || 'Volwassen';
+    let finalGrootte = grootte || '-';
+
+    let vandaag = new Date();
+    vandaag.setHours(0,0,0,0);
+    let start = new Date(vandaag.getTime());
+    start.setDate(start.getDate() - Math.floor(finalInterval / 2));
+
+    plants.push({
+      naam: naam,
+      laatst_water: formatDateYYYYMMDD(start),
+      interval_dagen: finalInterval,
+      hoeveelheid: finalAmount,
+      fase: finalFase,
+      grootte: finalGrootte,
+      verpot_datum: berekenVerpotDatumLokaal(finalFase)
+    });
+
+    slaPlantenOp(plants);
+    showAlert('🌱 ' + naam + ' is succesvol toegevoegd aan jouw tuin!', '#e8f5e9', '#1b5e20');
+    laadDashboard();
   }
 
   function showAlert(msg, bgColor, color) {
@@ -504,12 +676,60 @@
   let calendarDate = new Date(); 
 
   function laadDashboard() {
-    google.script.run
-      .withSuccessHandler(function(data) {
-        currentArrEvents = data.calendarEvents;
-        bouwPlantenLijst(data.plants);
-        renderCalendar();
-      }).getCombinedDashboardData(currentUserEmail);
+    let rawPlants = laadOpgeslagenPlanten();
+    let logs = laadOpgeslagenLogs();
+    let vandaag = new Date();
+    vandaag.setHours(0,0,0,0);
+
+    let events = { history: {}, future: {}, repotting: {} };
+
+    logs.forEach(log => {
+      if (log.datum && log.actie === 'Water gegeven') {
+        if (!events.history[log.datum]) events.history[log.datum] = [];
+        if (events.history[log.datum].indexOf(log.plant) === -1) events.history[log.datum].push(log.plant);
+      }
+    });
+
+    let berekendePlanten = rawPlants.map(p => {
+      let parts = p.laatst_water.split('-');
+      let laatstWater = new Date(parts[0], parts[1] - 1, parts[2]);
+      laatstWater.setHours(0,0,0,0);
+
+      let interval = Number(p.interval_dagen) || 7;
+      let volgendeBeurt = new Date(laatstWater.getTime());
+      volgendeBeurt.setDate(volgendeBeurt.getDate() + interval);
+
+      let volgendeStr = formatDateYYYYMMDD(volgendeBeurt);
+      if (!events.future[volgendeStr]) events.future[volgendeStr] = [];
+      if (events.future[volgendeStr].indexOf(p.naam) === -1) events.future[volgendeStr].push(p.naam);
+
+      if (p.verpot_datum) {
+        if (!events.repotting[p.verpot_datum]) events.repotting[p.verpot_datum] = [];
+        if (events.repotting[p.verpot_datum].indexOf(p.naam) === -1) events.repotting[p.verpot_datum].push(p.naam);
+      }
+
+      let diffTijd = volgendeBeurt.getTime() - vandaag.getTime();
+      let diffDagen = diffTijd / (1000 * 60 * 60 * 24);
+      let dropRate = 40 / interval;
+      let vochtigheid = Math.round(40 + (diffDagen * dropRate));
+      vochtigheid = Math.max(0, Math.min(100, vochtigheid));
+
+      return {
+        naam: p.naam,
+        laatst_water: p.laatst_water,
+        interval_dagen: interval,
+        hoeveelheid: p.hoeveelheid,
+        fase: p.fase,
+        grootte: p.grootte,
+        vochtigheid: vochtigheid,
+        overwatered_status: vochtigheid === 100,
+        diff_dagen: Math.ceil(diffDagen)
+      };
+    });
+
+    currentArrEvents = events;
+    bouwPlantenLijst(berekendePlanten);
+    renderCalendar();
   }
 
   function bouwPlantenLijst(plants) {
@@ -529,7 +749,6 @@
       else if (p.vochtigheid <= 45) { barColor = '#f44336'; } 
       else if (p.vochtigheid < 60) { barColor = '#ff9800'; } 
       
-      // HAALT GEKOPPELDE FOTO OP BASIS VAN PLANTENAAM
       let fotoUrl = getPlantPhotoUrl(p.naam);
 
       html += `
@@ -562,13 +781,47 @@
     document.getElementById('planten-lijst').innerHTML = html;
   }
 
-  function waterPlant(naam) {
+  function waterPlant(plantNaam) {
     playGulpSound();
-    showAlert('Wateractie verwerken...', '#fff3cd', '#856404');
-    google.script.run.withSuccessHandler(function(res) {
-        if(res.success) { showAlert(res.message, '#e8f5e9', '#1b5e20'); laadDashboard(); } 
-        else { showAlert('Fout: ' + res.message, '#f8d7da', '#721c24'); }
-    }).geefWaterActie(naam, currentUserEmail);
+    let plants = laadOpgeslagenPlanten();
+    let logs = laadOpgeslagenLogs();
+    let vandaag = new Date();
+    vandaag.setHours(0,0,0,0);
+    let vandaagStr = formatDateYYYYMMDD(vandaag);
+    let msgList = [];
+
+    plants.forEach(p => {
+      if (plantNaam === 'ALLE' || p.naam === plantNaam) {
+        let parts = p.laatst_water.split('-');
+        let laatstWater = new Date(parts[0], parts[1] - 1, parts[2]);
+        laatstWater.setHours(0,0,0,0);
+        let interval = Number(p.interval_dagen) || 7;
+
+        let volgendeBeurt = new Date(laatstWater.getTime());
+        volgendeBeurt.setDate(volgendeBeurt.getDate() + interval);
+        let diffTijd = volgendeBeurt.getTime() - vandaag.getTime();
+        let diffDagen = diffTijd / (1000 * 60 * 60 * 24);
+
+        let dropRate = 40 / interval;
+        let huidigVocht = Math.max(0, Math.min(100, 40 + (diffDagen * dropRate)));
+        let nieuweVocht = Math.min(100, huidigVocht + 40);
+        let dagenTotVolgendeBeurt = (nieuweVocht - 40) / dropRate;
+
+        let nieuweLaatstWater = new Date(vandaag.getTime());
+        nieuweLaatstWater.setDate(vandaag.getDate() - Math.round(interval - dagenTotVolgendeBeurt));
+        p.laatst_water = formatDateYYYYMMDD(nieuweLaatstWater);
+
+        logs.push({ datum: vandaagStr, plant: p.naam, actie: 'Water gegeven' });
+
+        let status = (Math.round(nieuweVocht) === 100) ? ' (Max vochtigheid!)' : '';
+        msgList.push('✅ ' + p.naam + ' ' + Math.round(nieuweVocht) + '%' + status);
+      }
+    });
+
+    slaPlantenOp(plants);
+    slaLogsOp(logs);
+    showAlert(msgList.join(' | '), '#e8f5e9', '#1b5e20');
+    laadDashboard();
   }
 
   function renderCalendar() {
@@ -591,10 +844,7 @@
     let vandaag = new Date();
     for (let d = 1; d <= aantalDagen; d++) {
       let dummyDate = new Date(jaar, maand, d);
-      let yyyy = dummyDate.getFullYear(); 
-      let mm = String(dummyDate.getMonth() + 1).padStart(2, '0'); 
-      let dd = String(dummyDate.getDate()).padStart(2, '0');
-      let datumSleutel = `${yyyy}-${mm}-${dd}`;
+      let datumSleutel = formatDateYYYYMMDD(dummyDate);
       
       let isVandaag = (vandaag.getDate() === d && vandaag.getMonth() === maand && vandaag.getFullYear() === jaar) ? 'today' : '';
       let dotsHtml = '<div class="dots-container">';
@@ -626,7 +876,8 @@
     let txt = `<b>📅 Info voor ${datumStr}:</b><br>`;
     if (hPlanten.length > 0) txt += `🟢 <b>Water gekregen:</b> ${hPlanten.join(', ')}<br>`;
     if (fPlanten.length > 0) txt += `🟡 <b>Water nodig:</b> ${fPlanten.join(', ')}<br>`;
-    if (rPlanten.length > 0) txt += `🟤 <b>Tijd om te verpotten:</b> ${rPlanten.join(', ')}`;
+    if (rPlanten.length > 0) txt += `🟤 <b>Verpotten:</b> ${rPlanten.join(', ')}<br>`;
+    
     infoBox.innerHTML = txt;
   }
 </script>
