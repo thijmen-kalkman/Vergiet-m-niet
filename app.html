@@ -16,6 +16,8 @@
     button:hover { background-color: #2e7d32; }
     .btn-all { background-color: #1b5e20; width: 100%; padding: 12px; font-size: 1em; margin-bottom: 15px; }
     .btn-add { background-color: #fbc02d; color: #1a251c; font-size: 0.9em; padding: 6px 12px;}
+    .btn-repot { background-color: #795548; color: white; padding: 8px 12px; }
+    .btn-repot:hover { background-color: #5d4037; }
     .btn-danger { background-color: #d32f2f; }
     .btn-danger:hover { background-color: #b71c1c; }
     
@@ -108,17 +110,17 @@
     
     <div id="manual-fields-container" style="display:none;">
       <div class="form-group">
-        <label>Groeifase (past water automatisch aan):</label>
+        <label>Groeifase (past water & verpot-tijd aan):</label>
         <select id="new-plant-fase" onchange="pasWaterAanOpFase()">
-          <option value="Zaadje">Zaadje (1/3 water)</option>
-          <option value="Net ontkiemd">Net ontkiemd (1/3 water)</option>
-          <option value="Iets groter">Iets groter (1/2 water)</option>
-          <option value="Volwassen" selected>Volwassen (Normaal)</option>
+          <option value="Zaadje">Zaadje (1/3 water, verpotten na 3 mnd)</option>
+          <option value="Net ontkiemd">Net ontkiemd (1/3 water, verpotten na 4 mnd)</option>
+          <option value="Iets groter">Iets groter (1/2 water, verpotten na 8 mnd)</option>
+          <option value="Volwassen" selected>Volwassen (Normaal, verpotten na 2 jaar)</option>
         </select>
       </div>
       <div class="form-group"><label>Water interval (dagen):</label><input type="number" id="new-plant-interval" placeholder="bijv. 7"></div>
       <div class="form-group"><label>Hoeveelheid water (ml):</label><input type="text" id="new-plant-amount" placeholder="bijv. 100 ml" oninput="updateBasisWaterHandmatig()"></div>
-      <div class="form-group"><label>Grootte nu / Hoogte (Optioneel):</label><input type="text" id="new-plant-grootte" placeholder="bijv. 15 cm"></div>
+      <div class="form-group"><label>Potmaat / Grootte nu (kleine pot = sneller verpotten):</label><input type="text" id="new-plant-grootte" placeholder="bijv. 5 cm of klein"></div>
     </div>
 
     <button class="modal-btn" id="btn-submit-plant" onclick="submitNewPlant()" style="display:none;">Plant Toevoegen</button>
@@ -149,7 +151,7 @@
       <div class="calendar-grid" id="calendar-grid"></div>
       <div id="info-box"></div>
       <div style="font-size:0.8em; margin-top:12px; color:#555; display:flex; justify-content:center; gap:12px; border-top:1px dashed #ddd; padding-top:8px;">
-        <span>🟢 Gekregen</span> <span>🟡 Gepland</span> <span>🟤 Verpotten</span>
+        <span>🟢 Water gehad</span> <span>🟡 Water nodig</span> <span>🟤 Verpotten</span>
       </div>
     </div>
   </div>
@@ -295,10 +297,10 @@
   let currentUserEmail = "";
   let currentPass = "";
   let activeScanPlantData = null;
-  let huidigeBasisWaterMl = 100; // Onthoudt het originele volwassen watervolume voor fase-berekening
+  let huidigeBasisWaterMl = 100;
 
   // =========================================================================
-  // 💾 LOKALE OPSLAG & BEREKENINGEN (VERVANGT GOOGLE SHEETS OP GITHUB)
+  // 💾 LOKALE OPSLAG & BEREKENINGEN
   // =========================================================================
   function getStorageKey(type) {
     return 'plantenzorg_' + type + '_' + (currentUserEmail || 'gast').toLowerCase();
@@ -337,23 +339,41 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  function berekenVerpotDatumLokaal(fase) {
+  // Berekent verpotdatum: zaadje ~3 maanden (sneller bij kleine pot), en hoe ouder hoe veel langer
+  function berekenVerpotDatumLokaal(fase, grootte) {
     let d = new Date();
-    if (fase === 'Zaadje') d.setDate(d.getDate() + 14);
-    else if (fase === 'Net ontkiemd') d.setMonth(d.getMonth() + 1);
-    else if (fase === 'Iets groter') d.setMonth(d.getMonth() + 4);
-    else d.setFullYear(d.getFullYear() + 1);
+    let gStr = (grootte || '').toLowerCase();
+    let numCm = parseInt(gStr, 10);
+    let isKleinePot = gStr.indexOf('klein') !== -1 || (!isNaN(numCm) && numCm > 0 && numCm <= 8);
+
+    if (fase === 'Zaadje') {
+      // Eerste verpotting vanaf zaadje rond de 3 maanden (bij extra kleine pot na ~1,5 maand)
+      if (isKleinePot) d.setDate(d.getDate() + 45);
+      else d.setMonth(d.getMonth() + 3);
+    } else if (fase === 'Net ontkiemd') {
+      d.setMonth(d.getMonth() + (isKleinePot ? 3 : 4));
+    } else if (fase === 'Iets groter') {
+      d.setMonth(d.getMonth() + (isKleinePot ? 6 : 8));
+    } else {
+      // Volwassen: duurt heel veel langer (24 maanden / 2 jaar)
+      d.setMonth(d.getMonth() + 24);
+    }
     return formatDateYYYYMMDD(d);
   }
 
-  // Slimme tekstnormalisatie (bijv. "monsteria" of "monstera" koppelen)
+  function volgendeGroeifase(huidigeFase) {
+    if (huidigeFase === 'Zaadje') return 'Net ontkiemd';
+    if (huidigeFase === 'Net ontkiemd') return 'Iets groter';
+    return 'Volwassen';
+  }
+
   function normalizeText(text) {
     if (!text) return "";
     return text.toString()
       .toLowerCase()
       .replace(/ë|é|è/g, 'e')
       .replace(/ï|í|ì/g, 'i')
-      .replace(/ia\b/g, 'a') // Vangt spelfoutjes zoals "monsteria" -> "monstera" op!
+      .replace(/ia\b/g, 'a')
       .replace(/[^a-z0-9]/g, '');
   }
 
@@ -380,7 +400,6 @@
     return { gevonden: false };
   }
 
-  // Past water hoeveelheid automatisch aan (gedeeld door 2 of 3) op basis van groeifase
   function berekenWaterVoorFase(basisMl, fase) {
     let num = parseInt(basisMl, 10) || 100;
     if (fase === 'Zaadje' || fase === 'Net ontkiemd') {
@@ -473,413 +492,3 @@
     document.getElementById('cookie-modal').style.display = 'none'; 
     document.getElementById('login-modal').style.display = 'flex'; 
   }
-
-  function doLogin() {
-    currentUserEmail = document.getElementById('login-user').value.trim();
-    currentPass = document.getElementById('login-pass').value;
-    
-    if(!currentUserEmail || currentUserEmail.indexOf('@') === -1) { 
-      alert("Vul a.u.b. een geldig Gmail adres in."); 
-      return; 
-    }
-    
-    document.getElementById('display-username').innerText = currentUserEmail;
-    document.getElementById('display-password').innerText = currentPass ? currentPass : '(Geen wachtwoord)';
-    
-    document.getElementById('login-modal').style.display = 'none';
-    document.getElementById('main-app').style.display = 'flex';
-    
-    laadDashboard();
-  }
-
-  function switchTab(tabName) {
-    ['home', 'agenda', 'scan', 'gegevens'].forEach(t => {
-      document.getElementById(t + '-screen').classList.remove('active');
-      document.getElementById('nav-' + t).classList.remove('active');
-    });
-    document.getElementById(tabName + '-screen').classList.add('active');
-    document.getElementById('nav-' + tabName).classList.add('active');
-  }
-
-  // --- FOTO UPLOAD & PLANTENHERKENNING LOGICA ---
-  function verwerkFotoUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      document.getElementById('scan-uploaded-preview').src = e.target.result;
-      document.getElementById('scan-result-container').style.display = 'block';
-      
-      document.getElementById('scan-step-1').style.display = 'block';
-      document.getElementById('scan-step-correct').style.display = 'none';
-      document.getElementById('scan-step-incorrect').style.display = 'none';
-
-      let match = zoekPlantInDatabase(file.name.split('.')[0]);
-      if (!match.gevonden) {
-        let randomPlant = PLANTEN_DATABASE[Math.floor(Math.random() * PLANTEN_DATABASE.length)];
-        match = { gevonden: true, naam: randomPlant.naam, interval: randomPlant.interval, ml: randomPlant.ml };
-      }
-
-      activeScanPlantData = {
-        naam: match.naam,
-        interval: match.interval,
-        hoeveelheid: match.ml + ' ml'
-      };
-
-      document.getElementById('scan-plant-name').innerText = activeScanPlantData.naam;
-      document.getElementById('scan-plant-interval').innerText = activeScanPlantData.interval;
-      document.getElementById('scan-plant-amount').innerText = activeScanPlantData.hoeveelheid;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function handleScanChoice(type) {
-    document.getElementById('scan-step-1').style.display = 'none';
-    if (type === 'CORRECT') {
-      document.getElementById('scan-step-correct').style.display = 'block';
-    } else {
-      document.getElementById('scan-step-incorrect').style.display = 'block';
-    }
-  }
-
-  function executeScanAddConfirm(shouldAdd) {
-    if (!shouldAdd || !activeScanPlantData) {
-      resetScanTab();
-      return;
-    }
-    
-    switchTab('home');
-    voegPlantLokaalToe(
-      activeScanPlantData.naam, 
-      activeScanPlantData.interval, 
-      activeScanPlantData.hoeveelheid, 
-      'Volwassen', 
-      '20 cm'
-    );
-    resetScanTab();
-  }
-
-  function resetScanTab() {
-    document.getElementById('scan-result-container').style.display = 'none';
-    document.getElementById('file-upload-input').value = '';
-    activeScanPlantData = null;
-  }
-
-  // --- ZOEK LOGICA DATABASE & "PLANT NIET GEVONDEN" ---
-  let lookupTimer;
-  function checkPlantInfoOnType() {
-    clearTimeout(lookupTimer);
-    let inputName = document.getElementById('new-plant-name').value.trim();
-    let statusNotice = document.getElementById('plant-lookup-status');
-    let manualFields = document.getElementById('manual-fields-container');
-    let submitBtn = document.getElementById('btn-submit-plant');
-    
-    if (inputName.length < 1) {
-      statusNotice.innerText = '';
-      manualFields.style.display = 'none';
-      submitBtn.style.display = 'none';
-      return;
-    }
-    
-    statusNotice.style.color = '#555';
-    statusNotice.innerText = 'Zoeken in plantendatabase...';
-    
-    lookupTimer = setTimeout(function() {
-      let info = zoekPlantInDatabase(inputName);
-      let gekozenFase = document.getElementById('new-plant-fase').value;
-
-      manualFields.style.display = 'block';
-      submitBtn.style.display = 'block';
-      
-      if (info.gevonden) {
-        statusNotice.style.color = '#2e7d32';
-        statusNotice.innerHTML = '✅ ' + info.naam + ' gevonden! Gegevens ingevuld.';
-        huidigeBasisWaterMl = info.ml;
-        document.getElementById('new-plant-interval').value = info.interval;
-        document.getElementById('new-plant-amount').value = berekenWaterVoorFase(huidigeBasisWaterMl, gekozenFase);
-      } else {
-        statusNotice.style.color = '#d32f2f';
-        statusNotice.innerHTML = 'plant niet gevonden — vul zelf de gegevens in';
-        huidigeBasisWaterMl = 100;
-        document.getElementById('new-plant-interval').value = 7;
-        document.getElementById('new-plant-amount').value = berekenWaterVoorFase(huidigeBasisWaterMl, gekozenFase);
-      }
-    }, 200);
-  }
-
-  function openAddModal() { 
-    document.getElementById('add-plant-modal').style.display = 'flex'; 
-    document.getElementById('new-plant-name').value = '';
-    document.getElementById('new-plant-fase').value = 'Volwassen';
-    document.getElementById('plant-lookup-status').innerText = '';
-    document.getElementById('manual-fields-container').style.display = 'none';
-    document.getElementById('btn-submit-plant').style.display = 'none';
-    huidigeBasisWaterMl = 100;
-  }
-  
-  function closeAddModal() { document.getElementById('add-plant-modal').style.display = 'none'; }
-  
-  function submitNewPlant() {
-    let rawName = document.getElementById('new-plant-name').value.trim();
-    let interval = document.getElementById('new-plant-interval').value;
-    let amount = document.getElementById('new-plant-amount').value;
-    let fase = document.getElementById('new-plant-fase').value;
-    let grootte = document.getElementById('new-plant-grootte').value;
-    
-    if(!rawName) return;
-
-    // Gebruik de officiële naam uit de database als hij matched, anders de ingetypte naam
-    let match = zoekPlantInDatabase(rawName);
-    let finalName = match.gevonden ? match.naam : rawName;
-
-    closeAddModal();
-    voegPlantLokaalToe(finalName, interval, amount, fase, grootte);
-  }
-
-  function voegPlantLokaalToe(naam, interval, hoeveelheid, fase, grootte) {
-    let plants = laadOpgeslagenPlanten();
-    let finalInterval = Number(interval) || 7;
-    let finalAmount = hoeveelheid || '100 ml';
-    if (!isNaN(finalAmount)) finalAmount = finalAmount + ' ml';
-    let finalFase = fase || 'Volwassen';
-    let finalGrootte = grootte || '-';
-
-    let vandaag = new Date();
-    vandaag.setHours(0,0,0,0);
-    let start = new Date(vandaag.getTime());
-    start.setDate(start.getDate() - Math.floor(finalInterval / 2));
-
-    plants.push({
-      naam: naam,
-      laatst_water: formatDateYYYYMMDD(start),
-      interval_dagen: finalInterval,
-      hoeveelheid: finalAmount,
-      fase: finalFase,
-      grootte: finalGrootte,
-      verpot_datum: berekenVerpotDatumLokaal(finalFase)
-    });
-
-    slaPlantenOp(plants);
-    showAlert('🌱 ' + naam + ' is succesvol toegevoegd aan jouw tuin!', '#e8f5e9', '#1b5e20');
-    laadDashboard();
-  }
-
-  function showAlert(msg, bgColor, color) {
-    let alertBox = document.getElementById('status-alert');
-    alertBox.style.display = 'block'; alertBox.style.backgroundColor = bgColor; alertBox.style.color = color;
-    alertBox.innerText = msg;
-    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
-  }
-
-  let currentArrEvents = { history: {}, future: {}, repotting: {} };
-  let calendarDate = new Date(); 
-
-  function laadDashboard() {
-    let rawPlants = laadOpgeslagenPlanten();
-    let logs = laadOpgeslagenLogs();
-    let vandaag = new Date();
-    vandaag.setHours(0,0,0,0);
-
-    let events = { history: {}, future: {}, repotting: {} };
-
-    logs.forEach(log => {
-      if (log.datum && log.actie === 'Water gegeven') {
-        if (!events.history[log.datum]) events.history[log.datum] = [];
-        if (events.history[log.datum].indexOf(log.plant) === -1) events.history[log.datum].push(log.plant);
-      }
-    });
-
-    let berekendePlanten = rawPlants.map(p => {
-      let parts = p.laatst_water.split('-');
-      let laatstWater = new Date(parts[0], parts[1] - 1, parts[2]);
-      laatstWater.setHours(0,0,0,0);
-
-      let interval = Number(p.interval_dagen) || 7;
-      let volgendeBeurt = new Date(laatstWater.getTime());
-      volgendeBeurt.setDate(volgendeBeurt.getDate() + interval);
-
-      let volgendeStr = formatDateYYYYMMDD(volgendeBeurt);
-      if (!events.future[volgendeStr]) events.future[volgendeStr] = [];
-      if (events.future[volgendeStr].indexOf(p.naam) === -1) events.future[volgendeStr].push(p.naam);
-
-      if (p.verpot_datum) {
-        if (!events.repotting[p.verpot_datum]) events.repotting[p.verpot_datum] = [];
-        if (events.repotting[p.verpot_datum].indexOf(p.naam) === -1) events.repotting[p.verpot_datum].push(p.naam);
-      }
-
-      let diffTijd = volgendeBeurt.getTime() - vandaag.getTime();
-      let diffDagen = diffTijd / (1000 * 60 * 60 * 24);
-      let dropRate = 40 / interval;
-      let vochtigheid = Math.round(40 + (diffDagen * dropRate));
-      vochtigheid = Math.max(0, Math.min(100, vochtigheid));
-
-      return {
-        naam: p.naam,
-        laatst_water: p.laatst_water,
-        interval_dagen: interval,
-        hoeveelheid: p.hoeveelheid,
-        fase: p.fase,
-        grootte: p.grootte,
-        vochtigheid: vochtigheid,
-        overwatered_status: vochtigheid === 100,
-        diff_dagen: Math.ceil(diffDagen)
-      };
-    });
-
-    currentArrEvents = events;
-    bouwPlantenLijst(berekendePlanten);
-    renderCalendar();
-  }
-
-  function bouwPlantenLijst(plants) {
-    let html = '';
-    if(!plants || plants.length === 0) { 
-      document.getElementById('planten-lijst').innerHTML = `
-        <div style="text-align:center; padding:30px; color:#666; background:#fff; border-radius:12px; border:1px dashed #ccc; margin-top: 15px;">
-          🌱 <b style="display:block; font-size:1.2em; margin-bottom:5px; color:#2e7d32;">Je tuin is nog leeg!</b>
-          <span style="font-size:0.9em;">Klik op <b>+ Plant</b> of ga naar 'Herkennen' om je eigen planten toe te voegen.</span>
-        </div>`; 
-      return; 
-    }
-    
-    plants.forEach(function(p) {
-      let barColor = '#4caf50'; 
-      if (p.vochtigheid === 100) { barColor = '#2196f3'; } 
-      else if (p.vochtigheid <= 45) { barColor = '#f44336'; } 
-      else if (p.vochtigheid < 60) { barColor = '#ff9800'; } 
-      
-      let fotoUrl = getPlantPhotoUrl(p.naam);
-
-      html += `
-        <div class="plant-card">
-          <div class="plant-header">
-            <div class="plant-title-wrapper">
-              <img src="${fotoUrl}" class="plant-img" alt="${p.naam}">
-              <div>
-                <span style="display:block;">${p.naam}</span>
-                <span style="font-size:0.65em; color:#556b5a; font-weight:normal; display:block;">
-                  Fase: <b>${p.fase}</b> ${p.grootte && p.grootte !== '-' ? '| Grootte: ' + p.grootte : ''}
-                </span>
-              </div>
-            </div>
-            <span style="font-size:0.75em; color:#556b5a; font-weight:normal;">Elke ${p.interval_dagen} dagen (${p.hoeveelheid})</span>
-          </div>
-          <div class="progress-container">
-            <div class="progress-bar" style="width: ${p.vochtigheid}%; background-color: ${barColor};"></div>
-            <div class="progress-text">${p.vochtigheid}% vochtig</div>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-            <span style="font-size:0.85em; font-weight:bold;">
-              ${p.vochtigheid <= 45 ? '❌ Geef nu water!' : '⏳ Volgende: over ' + p.diff_dagen + ' dagen'}
-            </span>
-            <button onclick="waterPlant('${p.naam.replace(/'/g, "\\'")}')">💧 Water</button>
-          </div>
-        </div>
-      `;
-    });
-    document.getElementById('planten-lijst').innerHTML = html;
-  }
-
-  function waterPlant(plantNaam) {
-    playGulpSound();
-    let plants = laadOpgeslagenPlanten();
-    let logs = laadOpgeslagenLogs();
-    let vandaag = new Date();
-    vandaag.setHours(0,0,0,0);
-    let vandaagStr = formatDateYYYYMMDD(vandaag);
-    let msgList = [];
-
-    plants.forEach(p => {
-      if (plantNaam === 'ALLE' || p.naam === plantNaam) {
-        let parts = p.laatst_water.split('-');
-        let laatstWater = new Date(parts[0], parts[1] - 1, parts[2]);
-        laatstWater.setHours(0,0,0,0);
-        let interval = Number(p.interval_dagen) || 7;
-
-        let volgendeBeurt = new Date(laatstWater.getTime());
-        volgendeBeurt.setDate(volgendeBeurt.getDate() + interval);
-        let diffTijd = volgendeBeurt.getTime() - vandaag.getTime();
-        let diffDagen = diffTijd / (1000 * 60 * 60 * 24);
-
-        let dropRate = 40 / interval;
-        let huidigVocht = Math.max(0, Math.min(100, 40 + (diffDagen * dropRate)));
-        let nieuweVocht = Math.min(100, huidigVocht + 40);
-        let dagenTotVolgendeBeurt = (nieuweVocht - 40) / dropRate;
-
-        let nieuweLaatstWater = new Date(vandaag.getTime());
-        nieuweLaatstWater.setDate(vandaag.getDate() - Math.round(interval - dagenTotVolgendeBeurt));
-        p.laatst_water = formatDateYYYYMMDD(nieuweLaatstWater);
-
-        logs.push({ datum: vandaagStr, plant: p.naam, actie: 'Water gegeven' });
-
-        let status = (Math.round(nieuweVocht) === 100) ? ' (Max vochtigheid!)' : '';
-        msgList.push('✅ ' + p.naam + ' ' + Math.round(nieuweVocht) + '%' + status);
-      }
-    });
-
-    slaPlantenOp(plants);
-    slaLogsOp(logs);
-    showAlert(msgList.join(' | '), '#e8f5e9', '#1b5e20');
-    laadDashboard();
-  }
-
-  function renderCalendar() {
-    const grid = document.getElementById('calendar-grid');
-    const title = document.getElementById('calendar-title');
-    grid.innerHTML = '';
-    const maanden = ["Januari", "Februari", "Maart", "April", "Mei", "Juni", "Juli", "Augustus", "September", "Oktober", "November", "December"];
-    const weekdagen = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
-    
-    let jaar = calendarDate.getFullYear(); let maand = calendarDate.getMonth();
-    title.innerText = maanden[maand] + " " + jaar;
-    weekdagen.forEach(d => { grid.innerHTML += `<div class="weekday-label">${d}</div>`; });
-    
-    let eersteDag = new Date(jaar, maand, 1).getDay();
-    let gecorrigeerdeStart = eersteDag === 0 ? 6 : eersteDag - 1; 
-    let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
-
-    for (let i = 0; i < gecorrigeerdeStart; i++) { grid.innerHTML += `<div class="calendar-day empty"></div>`; }
-
-    let vandaag = new Date();
-    for (let d = 1; d <= aantalDagen; d++) {
-      let dummyDate = new Date(jaar, maand, d);
-      let datumSleutel = formatDateYYYYMMDD(dummyDate);
-      
-      let isVandaag = (vandaag.getDate() === d && vandaag.getMonth() === maand && vandaag.getFullYear() === jaar) ? 'today' : '';
-      let dotsHtml = '<div class="dots-container">';
-      
-      if (currentArrEvents.history && currentArrEvents.history[datumSleutel]) dotsHtml += `<span class="dot watered" title="Water gegeven"></span>`;
-      if (currentArrEvents.future && currentArrEvents.future[datumSleutel]) dotsHtml += `<span class="dot scheduled" title="Water nodig"></span>`;
-      if (currentArrEvents.repotting && currentArrEvents.repotting[datumSleutel]) dotsHtml += `<span class="dot repotting" title="Verpotten"></span>`;
-      
-      dotsHtml += '</div>';
-
-      grid.innerHTML += `
-        <div class="calendar-day ${isVandaag}" onclick="toonDagInfo('${datumSleutel}')">
-          <span style="font-weight:500;">${d}</span>${dotsHtml}
-        </div>`;
-    }
-  }
-
-  function changeMonth(richting) { calendarDate.setMonth(calendarDate.getMonth() + richting); renderCalendar(); }
-  
-  function toonDagInfo(datumStr) {
-    let infoBox = document.getElementById('info-box');
-    let hPlanten = currentArrEvents.history[datumStr] || []; 
-    let fPlanten = currentArrEvents.future[datumStr] || [];
-    let rPlanten = currentArrEvents.repotting[datumStr] || [];
-
-    if (hPlanten.length === 0 && fPlanten.length === 0 && rPlanten.length === 0) { infoBox.style.display = 'none'; return; }
-    infoBox.style.display = 'block';
-    
-    let txt = `<b>📅 Info voor ${datumStr}:</b><br>`;
-    if (hPlanten.length > 0) txt += `🟢 <b>Water gekregen:</b> ${hPlanten.join(', ')}<br>`;
-    if (fPlanten.length > 0) txt += `🟡 <b>Water nodig:</b> ${fPlanten.join(', ')}<br>`;
-    if (rPlanten.length > 0) txt += `🟤 <b>Verpotten:</b> ${rPlanten.join(', ')}<br>`;
-    
-    infoBox.innerHTML = txt;
-  }
-</script>
-</body>
-</html>
